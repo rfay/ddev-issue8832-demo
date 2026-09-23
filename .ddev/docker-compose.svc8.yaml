@@ -1,0 +1,11 @@
+services:
+  svc8:
+    container_name: ddev-${DDEV_SITENAME}-svc8
+    init: true
+    image: issue8832-target-local-tag
+    build:
+      context: svc8
+      target: final
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT

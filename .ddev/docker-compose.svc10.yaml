@@ -1,0 +1,13 @@
+services:
+  svc10:
+    container_name: ddev-${DDEV_SITENAME}-svc10
+    init: true
+    image: issue8832-contexts-local-tag
+    build:
+      context: svc10
+      additional_contexts:
+        base: docker-image://alpine:3.20
+        files: ./svc10/files
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT

@@ -1,6 +1,7 @@
 services:
   svc3:
     container_name: ddev-${DDEV_SITENAME}-svc3
+    init: true
     image: ${BASE_IMAGE:-ubuntu:24.04}-${DDEV_SITENAME}-svc3-built
     build:
       dockerfile_inline: |

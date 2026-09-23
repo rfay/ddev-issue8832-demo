@@ -1,0 +1,10 @@
+services:
+  svc9:
+    container_name: ddev-${DDEV_SITENAME}-svc9
+    init: true
+    image: issue8832-scratch-local-tag
+    build:
+      context: svc9
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT

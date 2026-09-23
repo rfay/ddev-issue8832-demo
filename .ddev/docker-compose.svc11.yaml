@@ -1,0 +1,13 @@
+services:
+  svc11:
+    container_name: ddev-${DDEV_SITENAME}-svc11
+    init: true
+    image: issue8832-run-mount-local-tag
+    build:
+      dockerfile_inline: |
+        FROM alpine:3.20
+        RUN --mount=from=busybox:1.36-musl,target=/bb /bb/bin/busybox echo "I am svc11 (RUN --mount=from an image)" > /marker.txt
+    command: ["sleep", "infinity"]
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT
