@@ -1,6 +1,7 @@
 services:
   svc4:
     container_name: ddev-${DDEV_SITENAME}-svc4
+    init: true
     image: issue8832-env-arg-local-tag
     build:
       dockerfile_inline: |

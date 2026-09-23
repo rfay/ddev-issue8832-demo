@@ -1,0 +1,10 @@
+services:
+  svc7:
+    container_name: ddev-${DDEV_SITENAME}-svc7
+    init: true
+    image: issue8832-platform-arg-local-tag
+    build:
+      context: svc7
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT

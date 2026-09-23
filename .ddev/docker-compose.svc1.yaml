@@ -1,6 +1,7 @@
 services:
   svc1:
     container_name: ddev-${DDEV_SITENAME}-svc1
+    init: true
     image: ${BASE_IMAGE:-ubuntu:24.04}-${DDEV_SITENAME}-svc1-built
     build:
       context: svc1

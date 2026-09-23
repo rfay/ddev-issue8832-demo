@@ -1,6 +1,7 @@
 services:
   svc5:
     container_name: ddev-${DDEV_SITENAME}-svc5
+    init: true
     image: issue8832-stage-name-local-tag
     build:
       context: svc5

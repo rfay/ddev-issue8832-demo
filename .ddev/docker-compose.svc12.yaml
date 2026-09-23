@@ -1,0 +1,11 @@
+services:
+  svc12:
+    container_name: ddev-${DDEV_SITENAME}-svc12
+    init: true
+    image: issue8832-absolute-dockerfile-local-tag
+    build:
+      context: svc12
+      dockerfile: ${DDEV_APPROOT}/.ddev/svc12-dockerfiles/Dockerfile
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT

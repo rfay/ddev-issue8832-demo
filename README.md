@@ -10,7 +10,8 @@ overwrites the first — containers end up running the wrong image.
 The first three services all build from `ubuntu:24.04` in the three ways DDEV
 supports `build:`, each with a per-service tag qualifier that avoids the
 collision (`-svc1-`, `-svc2-`, `-svc3-`). `svc4` and `svc5` cover Dockerfile
-base-image resolution edge cases:
+base-image resolution edge cases, and `svc6` through `svc14` are described in
+[section 5](#5-confirm-buildkits-resolution-rules):
 
 | Service | Build style | File |
 | --- | --- | --- |
@@ -77,10 +78,10 @@ Install DDEV v1.25.4 (or any released version without the #8832 fix), then:
 ```bash
 ddev start
 # non-fatal warning: Unable to pull Docker images: DDEV tries to pull the
-# local image tags for svc1 through svc5, including
+# local image tag of every service, svc1 through svc14, including
 # "docker.io/library/ubuntu:24.04-issue8832-demo-svc1"
 
-ddev debug download-images
+ddev utility download-images
 # hard failure, with the same local image references
 ```
 
@@ -97,14 +98,14 @@ instead of parsing it out of the tag), put it first on `PATH`, then:
 ddev start
 # no pull warning
 
-ddev describe -j | jq -r '.raw.services | to_entries[] | select(.key|test("svc[1-3]")) | "\(.key): \(.value.image)"'
+ddev describe -j | jq -r '.raw.services | to_entries | map(select(.key|test("^svc[1-3]$"))) | sort_by(.key|ltrimstr("svc")|tonumber)[] | "\(.key): \(.value.image)"'
 # svc1: ubuntu:24.04
 # svc2: ubuntu:24.04
 # svc3: ubuntu:24.04
 
-ddev debug download-images
-# ubuntu:24.04 is pulled once for svc1 through svc4, and svc5 pulls
-# alpine:3.20 and busybox:1.36 — success
+ddev utility download-images
+# success: ubuntu:24.04 is pulled once for svc1 through svc4, and each
+# other service pulls the images listed in sections 4 and 5
 ```
 
 ## 4. Confirm environment-supplied build args and stage-name handling
@@ -112,18 +113,57 @@ ddev debug download-images
 `svc4` has an arbitrary local image tag and supplies `BASE_IMAGE` without a
 value. Docker Compose resolves it from the project environment at build time.
 `svc5` first uses `alpine:3.20`, then names a later `busybox:1.36` stage
-`alpine`. Only previously declared stage names are internal references.
+`alpine`. Only previously declared stage names are internal references, and
+the `alpine:3.20` stage is never built because the final stage doesn't use it,
+so only `busybox:1.36` is pulled.
 
 With the #8832 branch binary first on `PATH`, run:
 
 ```bash
 BASE_IMAGE=alpine:3.20 ddev start
-ddev describe -j | jq -r '.raw.services | to_entries[] | select(.key|test("svc[45]")) | "\(.key): \(.value.image)"'
+ddev describe -j | jq -r '.raw.services | to_entries | map(select(.key|test("^svc[45]$"))) | sort_by(.key|ltrimstr("svc")|tonumber)[] | "\(.key): \(.value.image)"'
 # svc4: alpine:3.20
-# svc5: alpine:3.20, busybox:1.36
+# svc5: busybox:1.36
 
-BASE_IMAGE=alpine:3.20 ddev debug download-images
-# alpine:3.20 and busybox:1.36 are pulled successfully
+BASE_IMAGE=alpine:3.20 ddev utility download-images
+# success: svc4 pulls alpine:3.20 and svc5 pulls busybox:1.36
+```
+
+## 5. Confirm BuildKit's resolution rules
+
+`svc6` through `svc14` use Dockerfile and compose features where the base
+image can only be found by resolving the Dockerfile the way BuildKit does:
+
+| Service | Case | Pulled |
+| --- | --- | --- |
+| `svc6` | `build.args` sets `TAG`, which a later `ARG BASE=alpine:${TAG}` uses | `alpine:3.20`, not the `3.19` default |
+| `svc7` | `FROM base-${TARGETARCH}` picks a stage by the Docker daemon's architecture | `alpine:3.20` on amd64, `alpine:3.19` on arm64 |
+| `svc8` | `target: final`, with `COPY --from=hello-world:latest` | `busybox:1.36`, `hello-world:latest`; not the stages outside the target |
+| `svc9` | `FROM scratch` with `COPY --from=busybox:1.36-musl` | `busybox:1.36-musl`; `scratch` is never pulled |
+| `svc10` | `FROM base` and `COPY --from=files`, both compose `additional_contexts` | `alpine:3.20` from `docker-image://alpine:3.20`; not `base` or `files` |
+| `svc11` | `RUN --mount=from=busybox:1.36-musl` | `alpine:3.20`, `busybox:1.36-musl` |
+| `svc12` | absolute `dockerfile:` path outside the build context | `debian:12-slim` |
+| `svc13` | `FROM base`, where `base` is `service:svc12` in compose `additional_contexts` | nothing; `ddev describe` shows svc12's local tag |
+| `svc14` | service-level `platform: linux/amd64` with `FROM base-${TARGETOS}-${TARGETARCH}` | `alpine:3.20` on every host, not `alpine:3.19` on arm64 or `base-darwin-arm64` on macOS |
+
+On an arm64 host, `svc14` needs amd64 emulation, which Docker Desktop and
+OrbStack provide.
+
+```bash
+ddev describe -j | jq -r '.raw.services | to_entries | map(select(.key|test("^svc([6-9]|1[0-4])$"))) | sort_by(.key|ltrimstr("svc")|tonumber)[] | "\(.key): \(.value.image)"'
+# svc6: alpine:3.20
+# svc7: alpine:3.20
+# svc8: busybox:1.36, hello-world:latest
+# svc9: busybox:1.36-musl
+# svc10: alpine:3.20
+# svc11: alpine:3.20, busybox:1.36-musl
+# svc12: debian:12-slim
+# svc13: issue8832-absolute-dockerfile-local-tag:latest
+# svc14: alpine:3.20
+
+ddev utility download-images
+# succeeds; a resolver that doesn't expand platform ARGs fails here with
+# "invalid reference format" on the image 'base-' or 'base--'
 ```
 
 ## Cleanup

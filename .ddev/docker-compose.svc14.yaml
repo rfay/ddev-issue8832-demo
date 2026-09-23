@@ -1,0 +1,11 @@
+services:
+  svc14:
+    container_name: ddev-${DDEV_SITENAME}-svc14
+    init: true
+    image: issue8832-service-platform-local-tag
+    platform: linux/amd64
+    build:
+      context: svc14
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT

@@ -1,0 +1,14 @@
+services:
+  svc13:
+    container_name: ddev-${DDEV_SITENAME}-svc13
+    init: true
+    image: issue8832-service-context-local-tag
+    build:
+      dockerfile_inline: |
+        FROM base
+        RUN echo "I am svc13 (built from svc12's image)" > /marker.txt
+      additional_contexts:
+        base: service:svc12
+    labels:
+      com.ddev.site-name: ${DDEV_SITENAME}
+      com.ddev.approot: $DDEV_APPROOT
